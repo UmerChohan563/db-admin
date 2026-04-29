@@ -191,15 +191,53 @@ export const DUMMY_CONNECTION = {
 
 export function simulateQuery(sql: string): QueryResult {
   const normalized = sql.trim().toLowerCase();
+  const activeDb = "ecommerce_db";
+
+  const tableDataMap: Record<string, string[]> = {
+    users: ["id", "username", "email", "created_at", "is_active"],
+    products: ["id", "name", "price", "stock", "category_id"],
+    orders: ["id", "user_id", "total", "status", "created_at"],
+    categories: ["id", "name", "parent_id"],
+  };
+
+  const extractTableName = (query: string): string | null => {
+    const match = query.match(/from\s+(\w+)/i);
+    return match ? match[1] : null;
+  };
 
   if (normalized.startsWith("select")) {
+    const tableName = extractTableName(normalized);
+    if (!tableName) {
+      return {
+        columns: [],
+        rows: [],
+        error: "Invalid SELECT query. Table name not found.",
+      };
+    }
+
+    const tableKey = tableName.toLowerCase();
+    const dbTableData = DUMMY_TABLE_DATA[activeDb]?.[tableKey];
+    if (!dbTableData) {
+      return {
+        columns: [],
+        rows: [],
+        error: `Table "${tableName}" not found.`,
+      };
+    }
+
+    const columns = tableDataMap[tableKey] ?? [];
+    const rows = dbTableData.map((row) => {
+      const obj: Record<string, string | number | boolean | null> = {};
+      columns.forEach((col, i) => {
+        obj[col] = row[i] as string | number | boolean | null;
+      });
+      return obj;
+    });
+
     return {
-      columns: ["id", "username", "email", "created_at"],
-      rows: [
-        { id: 1, username: "john_doe", email: "john@example.com", created_at: "2024-01-15 10:23:00" },
-        { id: 2, username: "jane_smith", email: "jane@example.com", created_at: "2024-01-16 14:05:00" },
-      ],
-      rowsAffected: 2,
+      columns,
+      rows,
+      rowsAffected: rows.length,
       executionTime: Math.floor(Math.random() * 50) + 5,
     };
   }

@@ -7,12 +7,15 @@ import {
   LogOut,
   TerminalSquare,
 } from "lucide-react";
-import { useConnectionStore } from "../../stores/connectionStore";
+import { useAuthStore } from "../../stores/authStore";
+import { useDbDataStore } from "../../stores/dbDataStore";
 import { useExplorerStore } from "../../stores/explorerStore";
 import { formatRowCount } from "../../utils/format";
+import { DUMMY_TABLE_DATA } from "../../utils/dummyData";
 
 export const Sidebar: React.FC = () => {
-  const { databases, disconnect, credentials } = useConnectionStore();
+  const { disconnect, credentials } = useAuthStore();
+  const { databases } = useDbDataStore();
   const {
     expandedDatabases,
     activeDatabase,
@@ -61,8 +64,8 @@ export const Sidebar: React.FC = () => {
             <div key={db.name}>
               {/* Database row */}
               <button
-                onClick={() => toggleDatabase(db.name)}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono text-text-dim hover:text-text hover:bg-white/5 transition-colors"
+                onDoubleClick={() => toggleDatabase(db.name)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono text-text-dim hover:text-text hover:bg-white/5 transition-colors cursor-pointer"
               >
                 {isExpanded ? (
                   <ChevronDown size={12} className="shrink-0 text-accent" />
@@ -80,11 +83,12 @@ export const Sidebar: React.FC = () => {
                   {db.tables.map((table) => {
                     const isActive =
                       activeDatabase === db.name && activeTable === table.name && activeView === "table";
+                    const rowCount = DUMMY_TABLE_DATA[db.name]?.[table.name]?.length ?? 0;
                     return (
                       <button
                         key={table.name}
-                        onClick={() => openTable(db.name, table.name)}
-                        className={`w-full flex items-center gap-2 pl-3 pr-3 py-1.5 text-xs font-mono transition-colors ${
+                        onDoubleClick={() => openTable(db.name, table.name)}
+                        className={`w-full flex items-center gap-2 pl-3 pr-3 py-1.5 text-xs font-mono transition-colors cursor-pointer ${
                           isActive
                             ? "bg-accent/10 text-accent border-r-2 border-accent"
                             : "text-text-dim hover:text-text hover:bg-white/5"
@@ -93,7 +97,7 @@ export const Sidebar: React.FC = () => {
                         <Table2 size={11} className="shrink-0" />
                         <span className="truncate">{table.name}</span>
                         <span className="ml-auto text-muted text-[10px]">
-                          {formatRowCount(table.rowCount)}
+                          {formatRowCount(rowCount)}
                         </span>
                       </button>
                     );

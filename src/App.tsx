@@ -1,9 +1,9 @@
-import { useConnectionStore } from "./stores/connectionStore";
+import { useAuthStore } from "./stores/authStore";
 import { ConnectionPage } from "./pages/ConnectionPage";
 import { ToolPage } from "./pages/ToolPage";
 
 function App() {
-  const { isConnected } = useConnectionStore();
+  const { isConnected } = useAuthStore();
   return isConnected ? <ToolPage /> : <ConnectionPage />;
 }
 

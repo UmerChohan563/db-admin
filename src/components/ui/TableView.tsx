@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Plus, Trash2, Columns, RefreshCw } from "lucide-react";
 import { useExplorerStore } from "../../stores/explorerStore";
-import { useConnectionStore } from "../../stores/connectionStore";
+import { useDbDataStore } from "../../stores/dbDataStore";
 import { Button } from "./Button";
 import { Modal } from "./Modal";
 import { Input } from "./Input";
@@ -22,7 +22,7 @@ export const TableView: React.FC = () => {
     openTable,
   } = useExplorerStore();
 
-  const { databases } = useConnectionStore();
+  const { databases } = useDbDataStore();
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [showAddCol, setShowAddCol] = useState(false);
@@ -82,7 +82,7 @@ export const TableView: React.FC = () => {
           <span className="text-text text-xs font-mono font-semibold">{activeTable}</span>
         </div>
         {tableInfo && (
-          <Badge variant="default">{formatRowCount(tableInfo.rowCount)} rows</Badge>
+          <Badge variant="default">{formatRowCount(tableData.length)} rows</Badge>
         )}
         <div className="ml-auto flex items-center gap-2">
           <Button
@@ -156,6 +156,7 @@ export const TableView: React.FC = () => {
                       key={col}
                       className="px-3 py-2 border-r border-border/50 max-w-[200px] cursor-text"
                       onClick={() => startEdit(rowIndex, col)}
+                      onDoubleClick={() => startEdit(rowIndex, col)}
                     >
                       {isEditing ? (
                         <input

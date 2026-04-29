@@ -1,6 +1,6 @@
 import React from "react";
 import { Database, Server, User, Lock, AlertCircle } from "lucide-react";
-import { useConnectionStore } from "../stores/connectionStore";
+import { useAuthStore } from "../stores/authStore";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
@@ -14,7 +14,7 @@ const DB_TYPES = [
 
 export const ConnectionPage: React.FC = () => {
   const { credentials, isConnecting, connectionError, setCredentials, connect } =
-    useConnectionStore();
+    useAuthStore();
 
   const handleConnect = (e: React.FormEvent) => {
     e.preventDefault();

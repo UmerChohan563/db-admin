@@ -1,26 +1,24 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ConnectionCredentials, DatabaseInfo } from "../types";
-import { DUMMY_DATABASES, DUMMY_CONNECTION } from "../utils/dummyData";
+import type { ConnectionCredentials } from "../types";
+import { DUMMY_CONNECTION } from "../utils/dummyData";
 
-interface ConnectionState {
+interface AuthState {
   isConnected: boolean;
   isConnecting: boolean;
   connectionError: string | null;
   credentials: ConnectionCredentials;
-  databases: DatabaseInfo[];
 
   setCredentials: (creds: Partial<ConnectionCredentials>) => void;
   connect: () => Promise<void>;
   disconnect: () => void;
 }
 
-const STORAGE_KEY = "db-admin-connection";
+const STORAGE_KEY = "db-admin-auth";
 
 interface StoredData {
   credentials: ConnectionCredentials;
   isConnected: boolean;
-  databases: DatabaseInfo[];
 }
 
 const loadFromStorage = (): StoredData | null => {
@@ -37,16 +35,16 @@ const clearStorage = () => {
   localStorage.removeItem(STORAGE_KEY);
 };
 
-const saveToStorage = (credentials: ConnectionCredentials, isConnected: boolean, databases: DatabaseInfo[]) => {
+const saveToStorage = (credentials: ConnectionCredentials, isConnected: boolean) => {
   localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify({ credentials, isConnected, databases })
+    JSON.stringify({ credentials, isConnected })
   );
 };
 
 const savedData = loadFromStorage();
 
-export const useConnectionStore = create<ConnectionState>()(
+export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       isConnected: savedData?.isConnected ?? false,
@@ -59,7 +57,6 @@ export const useConnectionStore = create<ConnectionState>()(
         username: DUMMY_CONNECTION.username,
         password: DUMMY_CONNECTION.password,
       },
-      databases: savedData?.databases ?? [],
 
       setCredentials: (creds) =>
         set((state) => ({
@@ -81,9 +78,8 @@ export const useConnectionStore = create<ConnectionState>()(
           set({
             isConnecting: false,
             isConnected: true,
-            databases: DUMMY_DATABASES,
           });
-          saveToStorage(credentials, true, DUMMY_DATABASES);
+          saveToStorage(credentials, true);
         } else {
           set({
             isConnecting: false,
@@ -96,7 +92,6 @@ export const useConnectionStore = create<ConnectionState>()(
         clearStorage();
         set({
           isConnected: false,
-          databases: [],
           connectionError: null,
         });
       },

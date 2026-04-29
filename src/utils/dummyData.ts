@@ -1,108 +1,5 @@
 import type { DatabaseInfo, QueryResult } from "../types";
 
-export const DUMMY_DATABASES: DatabaseInfo[] = [
-  {
-    name: "ecommerce_db",
-    tables: [
-      {
-        name: "users",
-        rowCount: 12453,
-        columns: [
-          { name: "id", type: "integer", nullable: false, primaryKey: true },
-          { name: "username", type: "varchar(100)", nullable: false, primaryKey: false },
-          { name: "email", type: "varchar(255)", nullable: false, primaryKey: false },
-          { name: "created_at", type: "timestamp", nullable: false, primaryKey: false, defaultValue: "now()" },
-          { name: "is_active", type: "boolean", nullable: false, primaryKey: false, defaultValue: "true" },
-        ],
-      },
-      {
-        name: "products",
-        rowCount: 3821,
-        columns: [
-          { name: "id", type: "integer", nullable: false, primaryKey: true },
-          { name: "name", type: "varchar(200)", nullable: false, primaryKey: false },
-          { name: "price", type: "numeric(10,2)", nullable: false, primaryKey: false },
-          { name: "stock", type: "integer", nullable: false, primaryKey: false, defaultValue: "0" },
-          { name: "category_id", type: "integer", nullable: true, primaryKey: false },
-        ],
-      },
-      {
-        name: "orders",
-        rowCount: 45921,
-        columns: [
-          { name: "id", type: "integer", nullable: false, primaryKey: true },
-          { name: "user_id", type: "integer", nullable: false, primaryKey: false },
-          { name: "total", type: "numeric(10,2)", nullable: false, primaryKey: false },
-          { name: "status", type: "varchar(50)", nullable: false, primaryKey: false, defaultValue: "'pending'" },
-          { name: "created_at", type: "timestamp", nullable: false, primaryKey: false, defaultValue: "now()" },
-        ],
-      },
-      {
-        name: "categories",
-        rowCount: 48,
-        columns: [
-          { name: "id", type: "integer", nullable: false, primaryKey: true },
-          { name: "name", type: "varchar(100)", nullable: false, primaryKey: false },
-          { name: "parent_id", type: "integer", nullable: true, primaryKey: false },
-        ],
-      },
-    ],
-  },
-  {
-    name: "analytics_db",
-    tables: [
-      {
-        name: "events",
-        rowCount: 1234567,
-        columns: [
-          { name: "id", type: "bigint", nullable: false, primaryKey: true },
-          { name: "event_type", type: "varchar(100)", nullable: false, primaryKey: false },
-          { name: "user_id", type: "integer", nullable: true, primaryKey: false },
-          { name: "metadata", type: "jsonb", nullable: true, primaryKey: false },
-          { name: "timestamp", type: "timestamp", nullable: false, primaryKey: false },
-        ],
-      },
-      {
-        name: "sessions",
-        rowCount: 89234,
-        columns: [
-          { name: "id", type: "uuid", nullable: false, primaryKey: true },
-          { name: "user_id", type: "integer", nullable: true, primaryKey: false },
-          { name: "started_at", type: "timestamp", nullable: false, primaryKey: false },
-          { name: "ended_at", type: "timestamp", nullable: true, primaryKey: false },
-          { name: "ip_address", type: "inet", nullable: true, primaryKey: false },
-        ],
-      },
-    ],
-  },
-  {
-    name: "hr_system",
-    tables: [
-      {
-        name: "employees",
-        rowCount: 342,
-        columns: [
-          { name: "id", type: "integer", nullable: false, primaryKey: true },
-          { name: "first_name", type: "varchar(100)", nullable: false, primaryKey: false },
-          { name: "last_name", type: "varchar(100)", nullable: false, primaryKey: false },
-          { name: "department", type: "varchar(100)", nullable: true, primaryKey: false },
-          { name: "salary", type: "numeric(12,2)", nullable: false, primaryKey: false },
-          { name: "hire_date", type: "date", nullable: false, primaryKey: false },
-        ],
-      },
-      {
-        name: "departments",
-        rowCount: 12,
-        columns: [
-          { name: "id", type: "integer", nullable: false, primaryKey: true },
-          { name: "name", type: "varchar(100)", nullable: false, primaryKey: false },
-          { name: "manager_id", type: "integer", nullable: true, primaryKey: false },
-        ],
-      },
-    ],
-  },
-];
-
 export const DUMMY_TABLE_DATA: Record<string, Record<string, (string | number | boolean | null)[][]>> = {
   ecommerce_db: {
     users: [
@@ -170,6 +67,119 @@ export const DUMMY_TABLE_DATA: Record<string, Record<string, (string | number | 
     ],
   },
 };
+
+export const getRowCount = (dbName: string, tableName: string): number => {
+  return DUMMY_TABLE_DATA[dbName]?.[tableName]?.length ?? 0;
+};
+
+export const DUMMY_DATABASES: DatabaseInfo[] = [
+  {
+    name: "ecommerce_db",
+    tables: [
+      {
+        name: "users",
+        rowCount: 0,
+        columns: [
+          { name: "id", type: "integer", nullable: false, primaryKey: true },
+          { name: "username", type: "varchar(100)", nullable: false, primaryKey: false },
+          { name: "email", type: "varchar(255)", nullable: false, primaryKey: false },
+          { name: "created_at", type: "timestamp", nullable: false, primaryKey: false, defaultValue: "now()" },
+          { name: "is_active", type: "boolean", nullable: false, primaryKey: false, defaultValue: "true" },
+        ],
+      },
+      {
+        name: "products",
+        rowCount: 0,
+        columns: [
+          { name: "id", type: "integer", nullable: false, primaryKey: true },
+          { name: "name", type: "varchar(200)", nullable: false, primaryKey: false },
+          { name: "price", type: "numeric(10,2)", nullable: false, primaryKey: false },
+          { name: "stock", type: "integer", nullable: false, primaryKey: false, defaultValue: "0" },
+          { name: "category_id", type: "integer", nullable: true, primaryKey: false },
+        ],
+      },
+      {
+        name: "orders",
+        rowCount: 0,
+        columns: [
+          { name: "id", type: "integer", nullable: false, primaryKey: true },
+          { name: "user_id", type: "integer", nullable: false, primaryKey: false },
+          { name: "total", type: "numeric(10,2)", nullable: false, primaryKey: false },
+          { name: "status", type: "varchar(50)", nullable: false, primaryKey: false, defaultValue: "'pending'" },
+          { name: "created_at", type: "timestamp", nullable: false, primaryKey: false, defaultValue: "now()" },
+        ],
+      },
+      {
+        name: "categories",
+        rowCount: 0,
+        columns: [
+          { name: "id", type: "integer", nullable: false, primaryKey: true },
+          { name: "name", type: "varchar(100)", nullable: false, primaryKey: false },
+          { name: "parent_id", type: "integer", nullable: true, primaryKey: false },
+        ],
+      },
+    ],
+  },
+  {
+    name: "analytics_db",
+    tables: [
+      {
+        name: "events",
+        rowCount: 0,
+        columns: [
+          { name: "id", type: "bigint", nullable: false, primaryKey: true },
+          { name: "event_type", type: "varchar(100)", nullable: false, primaryKey: false },
+          { name: "user_id", type: "integer", nullable: true, primaryKey: false },
+          { name: "metadata", type: "jsonb", nullable: true, primaryKey: false },
+          { name: "timestamp", type: "timestamp", nullable: false, primaryKey: false },
+        ],
+      },
+      {
+        name: "sessions",
+        rowCount: 0,
+        columns: [
+          { name: "id", type: "uuid", nullable: false, primaryKey: true },
+          { name: "user_id", type: "integer", nullable: true, primaryKey: false },
+          { name: "started_at", type: "timestamp", nullable: false, primaryKey: false },
+          { name: "ended_at", type: "timestamp", nullable: true, primaryKey: false },
+          { name: "ip_address", type: "inet", nullable: true, primaryKey: false },
+        ],
+      },
+    ],
+  },
+  {
+    name: "hr_system",
+    tables: [
+      {
+        name: "employees",
+        rowCount: 0,
+        columns: [
+          { name: "id", type: "integer", nullable: false, primaryKey: true },
+          { name: "first_name", type: "varchar(100)", nullable: false, primaryKey: false },
+          { name: "last_name", type: "varchar(100)", nullable: false, primaryKey: false },
+          { name: "department", type: "varchar(100)", nullable: true, primaryKey: false },
+          { name: "salary", type: "numeric(12,2)", nullable: false, primaryKey: false },
+          { name: "hire_date", type: "date", nullable: false, primaryKey: false },
+        ],
+      },
+      {
+        name: "departments",
+        rowCount: 0,
+        columns: [
+          { name: "id", type: "integer", nullable: false, primaryKey: true },
+          { name: "name", type: "varchar(100)", nullable: false, primaryKey: false },
+          { name: "manager_id", type: "integer", nullable: true, primaryKey: false },
+        ],
+      },
+    ],
+  },
+];
+
+DUMMY_DATABASES.forEach((db) => {
+  db.tables.forEach((table) => {
+    table.rowCount = getRowCount(db.name, table.name);
+  });
+});
 
 export const DUMMY_CONNECTION = {
   dbType: "postgresql",

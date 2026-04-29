@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { TableRow, QueryResult } from "../types";
 import { DUMMY_TABLE_DATA, simulateQuery } from "../utils/dummyData";
 import { generateId } from "../utils/format";
+import { useDbDataStore } from "./dbDataStore";
 
 interface ExplorerState {
   activeView: "table" | "query";
@@ -61,29 +62,12 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
       return;
     }
 
-    // Get column names from the database info (passed via connection store)
-    // We'll derive them from the dummy data keys
     const rawRows = dbData[tableName];
 
-    // Build column headers based on table
-    const columnMap: Record<string, Record<string, string[]>> = {
-      ecommerce_db: {
-        users: ["id", "username", "email", "created_at", "is_active"],
-        products: ["id", "name", "price", "stock", "category_id"],
-        orders: ["id", "user_id", "total", "status", "created_at"],
-        categories: ["id", "name", "parent_id"],
-      },
-      analytics_db: {
-        events: ["id", "event_type", "user_id", "metadata", "timestamp"],
-        sessions: ["id", "user_id", "started_at", "ended_at", "ip_address"],
-      },
-      hr_system: {
-        employees: ["id", "first_name", "last_name", "department", "salary", "hire_date"],
-        departments: ["id", "name", "manager_id"],
-      },
-    };
+    const databases = useDbDataStore.getState().databases;
+    const tableInfo = databases.find((d) => d.name === dbName)?.tables.find((t) => t.name === tableName);
+    const columns = tableInfo?.columns.map((c) => c.name) ?? [];
 
-    const columns = columnMap[dbName]?.[tableName] ?? [];
     const rows: TableRow[] = rawRows.map((row) => {
       const obj: TableRow = { _id: generateId() };
       columns.forEach((col, i) => {

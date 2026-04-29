@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import type { ConnectionCredentials, DatabaseInfo } from "../types";
 import { DUMMY_DATABASES, DUMMY_CONNECTION } from "../utils/dummyData";
 
@@ -14,55 +15,95 @@ interface ConnectionState {
   disconnect: () => void;
 }
 
-export const useConnectionStore = create<ConnectionState>((set, get) => ({
-  isConnected: false,
-  isConnecting: false,
-  connectionError: null,
-  credentials: {
-    dbType: DUMMY_CONNECTION.dbType,
-    host: DUMMY_CONNECTION.host,
-    port: DUMMY_CONNECTION.port,
-    username: DUMMY_CONNECTION.username,
-    password: DUMMY_CONNECTION.password,
-  },
-  databases: [],
+const STORAGE_KEY = "db-admin-connection";
 
-  setCredentials: (creds) =>
-    set((state) => ({
-      credentials: { ...state.credentials, ...creds },
-      connectionError: null,
-    })),
+interface StoredData {
+  credentials: ConnectionCredentials;
+  isConnected: boolean;
+  databases: DatabaseInfo[];
+}
 
-  connect: async () => {
-    const { credentials } = get();
-    set({ isConnecting: true, connectionError: null });
-
-    // Simulate network delay
-    await new Promise((r) => setTimeout(r, 1400));
-
-    // Validate dummy credentials
-    if (
-      credentials.username === DUMMY_CONNECTION.username &&
-      credentials.password === DUMMY_CONNECTION.password &&
-      credentials.host === DUMMY_CONNECTION.host
-    ) {
-      set({
-        isConnecting: false,
-        isConnected: true,
-        databases: DUMMY_DATABASES,
-      });
-    } else {
-      set({
-        isConnecting: false,
-        connectionError: `Connection refused: could not connect to server "${credentials.host}:${credentials.port}". Check credentials and try again.`,
-      });
+const loadFromStorage = (): StoredData | null => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
     }
-  },
+  } catch {}
+  return null;
+};
 
-  disconnect: () =>
-    set({
-      isConnected: false,
-      databases: [],
+const clearStorage = () => {
+  localStorage.removeItem(STORAGE_KEY);
+};
+
+const saveToStorage = (credentials: ConnectionCredentials, isConnected: boolean, databases: DatabaseInfo[]) => {
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({ credentials, isConnected, databases })
+  );
+};
+
+const savedData = loadFromStorage();
+
+export const useConnectionStore = create<ConnectionState>()(
+  persist(
+    (set, get) => ({
+      isConnected: savedData?.isConnected ?? false,
+      isConnecting: false,
       connectionError: null,
+      credentials: savedData?.credentials ?? {
+        dbType: DUMMY_CONNECTION.dbType,
+        host: DUMMY_CONNECTION.host,
+        port: DUMMY_CONNECTION.port,
+        username: DUMMY_CONNECTION.username,
+        password: DUMMY_CONNECTION.password,
+      },
+      databases: savedData?.databases ?? [],
+
+      setCredentials: (creds) =>
+        set((state) => ({
+          credentials: { ...state.credentials, ...creds },
+          connectionError: null,
+        })),
+
+      connect: async () => {
+        const { credentials } = get();
+        set({ isConnecting: true, connectionError: null });
+
+        await new Promise((r) => setTimeout(r, 1400));
+
+        if (
+          credentials.username === DUMMY_CONNECTION.username &&
+          credentials.password === DUMMY_CONNECTION.password &&
+          credentials.host === DUMMY_CONNECTION.host
+        ) {
+          set({
+            isConnecting: false,
+            isConnected: true,
+            databases: DUMMY_DATABASES,
+          });
+          saveToStorage(credentials, true, DUMMY_DATABASES);
+        } else {
+          set({
+            isConnecting: false,
+            connectionError: `Connection refused: could not connect to server "${credentials.host}:${credentials.port}". Check credentials and try again.`,
+          });
+        }
+      },
+
+      disconnect: () => {
+        clearStorage();
+        set({
+          isConnected: false,
+          databases: [],
+          connectionError: null,
+        });
+      },
     }),
-}));
+    {
+      name: STORAGE_KEY,
+      partialize: () => ({}),
+    }
+  )
+);

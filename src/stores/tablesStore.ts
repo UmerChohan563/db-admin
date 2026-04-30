@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import type { TableRow, QueryResult } from "../types";
-import { DUMMY_TABLE_DATA, simulateQuery } from "../utils/dummyData";
+import { apiService } from "../api/api";
+import { simulateQuery } from "../utils/queryData";
 import { generateId } from "../utils/format";
-import { useDbDataStore } from "./dbDataStore";
 
 interface ExplorerState {
   activeView: "table" | "query";
@@ -11,6 +11,10 @@ interface ExplorerState {
   expandedDatabases: Set<string>;
   tableData: TableRow[];
   tableColumns: string[];
+  tableColumnTypes: Record<string, string>;
+  tablePage: number;
+  tableTake: number;
+  tableTotalOnPage: number;
   querySQL: string;
   queryResult: QueryResult | null;
   isQueryRunning: boolean;
@@ -18,7 +22,9 @@ interface ExplorerState {
 
   setActiveView: (view: "table" | "query") => void;
   toggleDatabase: (dbName: string) => void;
-  openTable: (dbName: string, tableName: string) => Promise<void>;
+  openTable: (dbName: string, tableName: string, page?: number, take?: number) => Promise<void>;
+  setTablePage: (page: number) => void;
+  setTableTake: (take: number) => void;
   updateCell: (rowIndex: number, column: string, value: string | number | null) => void;
   addRow: () => void;
   deleteRow: (rowIndex: number) => void;
@@ -34,7 +40,11 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
   expandedDatabases: new Set(),
   tableData: [],
   tableColumns: [],
-  querySQL: "SELECT * FROM users LIMIT 100;",
+  tableColumnTypes: {},
+  tablePage: 1,
+  tableTake: 10,
+  tableTotalOnPage: 0,
+  querySQL: "",
   queryResult: null,
   isQueryRunning: false,
   isTableLoading: false,
@@ -52,31 +62,49 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
     set({ expandedDatabases: next });
   },
 
-  openTable: async (dbName, tableName) => {
-    set({ isTableLoading: true, activeDatabase: dbName, activeTable: tableName, activeView: "table" });
-    await new Promise((r) => setTimeout(r, 400));
-
-    const dbData = DUMMY_TABLE_DATA[dbName];
-    if (!dbData || !dbData[tableName]) {
-      set({ tableData: [], tableColumns: [], isTableLoading: false });
-      return;
+  setTablePage: (page) => {
+    const { activeDatabase, activeTable, tableTake } = get();
+    if (activeDatabase && activeTable) {
+      get().openTable(activeDatabase, activeTable, page, tableTake);
     }
+  },
 
-    const rawRows = dbData[tableName];
+  setTableTake: (take) => {
+    const { activeDatabase, activeTable } = get();
+    if (activeDatabase && activeTable) {
+      get().openTable(activeDatabase, activeTable, 1, take);
+    }
+  },
 
-    const databases = useDbDataStore.getState().databases;
-    const tableInfo = databases.find((d) => d.name === dbName)?.tables.find((t) => t.name === tableName);
-    const columns = tableInfo?.columns.map((c) => c.name) ?? [];
+  openTable: async (dbName, tableName, page = 1, take = 10) => {
+    set({ isTableLoading: true, activeDatabase: dbName, activeTable: tableName, activeView: "table" });
 
-    const rows: TableRow[] = rawRows.map((row) => {
-      const obj: TableRow = { _id: generateId() };
-      columns.forEach((col, i) => {
-        obj[col] = row[i] as string | number | boolean | null;
+    try {
+      const response = await apiService.getTableRecords(dbName, tableName, page, take);
+
+      // Extract columns and types from meta.types (from first record)
+      const firstRecord = response.records[0];
+      const columns = firstRecord?.meta?.types ? Object.keys(firstRecord.meta.types) : [];
+      const columnTypes = firstRecord?.meta?.types ?? {};
+
+      const rows = response.records.map((record: { data: Record<string, unknown> }) => ({
+        _id: generateId(),
+        ...record.data,
+      }));
+
+      set({
+        tableData: rows,
+        tableColumns: columns,
+        tableColumnTypes: columnTypes,
+        tablePage: response.page,
+        tableTake: response.take,
+        tableTotalOnPage: response.total_on_page,
+        isTableLoading: false,
       });
-      return obj;
-    });
-
-    set({ tableData: rows, tableColumns: columns, isTableLoading: false });
+    } catch (error) {
+      console.error("Failed to fetch table data:", error);
+      set({ tableData: [], tableColumns: [], tableColumnTypes: {}, isTableLoading: false });
+    }
   },
 
   updateCell: (rowIndex, column, value) => {

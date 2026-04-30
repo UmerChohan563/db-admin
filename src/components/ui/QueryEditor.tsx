@@ -1,6 +1,6 @@
 import React from "react";
 import { Play, Clock, AlertCircle, CheckCircle2 } from "lucide-react";
-import { useExplorerStore } from "../../stores/explorerStore";
+import { useExplorerStore } from "../../stores/tablesStore";
 import { Button } from "./Button";
 import { Badge } from "./Badge";
 

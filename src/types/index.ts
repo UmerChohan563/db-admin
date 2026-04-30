@@ -10,6 +10,7 @@ export interface ConnectionCredentials {
 export interface DatabaseInfo {
   name: string;
   tables: TableInfo[];
+  totalSets?: number;
 }
 
 export interface TableInfo {

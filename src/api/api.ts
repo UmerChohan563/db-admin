@@ -1,60 +1,20 @@
-export interface ApiRequest<T = unknown> {
-  url: string;
-  method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
-  data?: T;
-  headers?: Record<string, string>;
-}
+import publicApi from "../interceptor/api";
 
-export interface ApiResponse<T = unknown> {
-  data: T;
-  status: number;
-  message: string;
-}
+export const apiService = {
+  getDatabases: async () => {
+    const res = await publicApi.get("/namespaces");
+    return res.data;
+  },
 
-export interface InterceptorCallbacks {
-  onRequest?: <T>(config: ApiRequest<T>) => ApiRequest<T> | Promise<ApiRequest<T>>;
-  onResponse?: <T>(response: ApiResponse<T>) => ApiResponse<T> | Promise<ApiResponse<T>>;
-  onError?: (error: Error) => void;
-}
+  getTables: async (dbName: string) => {
+    const res = await publicApi.get(`/${dbName}/sets`);
+    return res.data;
+  },
 
-class ApiInterceptor {
-  private callbacks: InterceptorCallbacks = {};
-
-  setCallbacks(callbacks: InterceptorCallbacks) {
-    this.callbacks = callbacks;
-  }
-
-  async request<T>(config: ApiRequest<T>): Promise<ApiResponse<T>> {
-    try {
-      let finalConfig = config;
-
-      if (this.callbacks.onRequest) {
-        finalConfig = await this.callbacks.onRequest(config);
-      }
-
-      const response = await this.executeRequest(finalConfig);
-
-      if (this.callbacks.onResponse) {
-        return await this.callbacks.onResponse(response);
-      }
-
-      return response;
-    } catch (error) {
-      if (this.callbacks.onError) {
-        this.callbacks.onError(error as Error);
-      }
-      throw error;
-    }
-  }
-
-  private async executeRequest<T>(config: ApiRequest<T>): Promise<ApiResponse<T>> {
-    console.log(`[API] ${config.method ?? "GET"} ${config.url}`);
-    return {
-      data: {} as T,
-      status: 200,
-      message: "OK",
-    };
-  }
-}
-
-export const api = new ApiInterceptor();
+  getTableRecords: async (dbName: string, tableName: string, page = 1, take = 10) => {
+    const res = await publicApi.get(`/namespaces/${dbName}/sets/${tableName}/records`, {
+      params: { page, take },
+    });
+    return res.data;
+  },
+};

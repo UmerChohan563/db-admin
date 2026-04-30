@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ConnectionCredentials } from "../types";
+import { useDbDataStore } from "./dbDataStore";
+import { useExplorerStore } from "./tablesStore";
 
 interface AuthState {
   isConnected: boolean;
@@ -76,13 +78,16 @@ export const useAuthStore = create<AuthState>()(
         saveToStorage(credentials, true);
       },
 
-      disconnect: () => {
-        clearStorage();
-        set({
-          isConnected: false,
-          connectionError: null,
-        });
-      },
+       disconnect: () => {
+         clearStorage();
+         set({
+           isConnected: false,
+           connectionError: null,
+         });
+         // Reset other stores
+         useDbDataStore.getState().clearDatabases();
+         useExplorerStore.getState().resetExplorer?.();
+       },
     }),
     {
       name: STORAGE_KEY,

@@ -31,6 +31,7 @@ interface ExplorerState {
   addColumn: (columnName: string) => void;
   setQuerySQL: (sql: string) => void;
   runQuery: () => Promise<void>;
+  resetExplorer: () => void;
 }
 
 export const useExplorerStore = create<ExplorerState>((set, get) => ({
@@ -142,5 +143,24 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
     await new Promise((r) => setTimeout(r, 800));
     const result = simulateQuery(querySQL);
     set({ queryResult: result, isQueryRunning: false });
+  },
+
+  resetExplorer: () => {
+    set({
+      activeView: "table",
+      activeDatabase: null,
+      activeTable: null,
+      expandedDatabases: new Set(),
+      tableData: [],
+      tableColumns: [],
+      tableColumnTypes: {},
+      tablePage: 1,
+      tableTake: 10,
+      tableTotalOnPage: 0,
+      querySQL: "",
+      queryResult: null,
+      isQueryRunning: false,
+      isTableLoading: false,
+    });
   },
 }));

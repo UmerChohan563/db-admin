@@ -2,7 +2,7 @@ import React from "react";
 import { Sidebar } from "../components/ui/Sidebar";
 import { TableView } from "../components/ui/TableView";
 import { QueryEditor } from "../components/ui/QueryEditor";
-import { useExplorerStore } from "../stores/explorerStore";
+import { useExplorerStore } from "../stores/tablesStore";
 
 export const ToolPage: React.FC = () => {
   const { activeView } = useExplorerStore();

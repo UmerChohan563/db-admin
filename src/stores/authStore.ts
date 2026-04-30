@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ConnectionCredentials } from "../types";
-import { DUMMY_CONNECTION } from "../utils/dummyData";
 
 interface AuthState {
   isConnected: boolean;
@@ -51,11 +50,11 @@ export const useAuthStore = create<AuthState>()(
       isConnecting: false,
       connectionError: null,
       credentials: savedData?.credentials ?? {
-        dbType: DUMMY_CONNECTION.dbType,
-        host: DUMMY_CONNECTION.host,
-        port: DUMMY_CONNECTION.port,
-        username: DUMMY_CONNECTION.username,
-        password: DUMMY_CONNECTION.password,
+        dbType: "",
+        host: "",
+        port: "",
+        username: "",
+        password: "",
       },
 
       setCredentials: (creds) =>
@@ -70,22 +69,11 @@ export const useAuthStore = create<AuthState>()(
 
         await new Promise((r) => setTimeout(r, 1400));
 
-        if (
-          credentials.username === DUMMY_CONNECTION.username &&
-          credentials.password === DUMMY_CONNECTION.password &&
-          credentials.host === DUMMY_CONNECTION.host
-        ) {
-          set({
-            isConnecting: false,
-            isConnected: true,
-          });
-          saveToStorage(credentials, true);
-        } else {
-          set({
-            isConnecting: false,
-            connectionError: `Connection refused: could not connect to server "${credentials.host}:${credentials.port}". Check credentials and try again.`,
-          });
-        }
+        set({
+          isConnecting: false,
+          isConnected: true,
+        });
+        saveToStorage(credentials, true);
       },
 
       disconnect: () => {

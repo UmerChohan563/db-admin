@@ -1,12 +1,17 @@
 import React, { useState } from "react";
-import { Plus, Trash2, Columns, RefreshCw } from "lucide-react";
-import { useExplorerStore } from "../../stores/explorerStore";
-import { useDbDataStore } from "../../stores/dbDataStore";
+import { Plus, Trash2, Columns, RefreshCw, ChevronDown } from "lucide-react";
+import { useExplorerStore } from "../../stores/tablesStore";
 import { Button } from "./Button";
 import { Modal } from "./Modal";
 import { Input } from "./Input";
 import { Badge } from "./Badge";
-import { formatRowCount } from "../../utils/format";
+
+const TAKE_OPTIONS = [
+  { value: 10, label: "10" },
+  { value: 20, label: "20" },
+  { value: 50, label: "50" },
+  { value: 100, label: "100" },
+];
 
 export const TableView: React.FC = () => {
   const {
@@ -14,23 +19,26 @@ export const TableView: React.FC = () => {
     activeTable,
     tableData,
     tableColumns,
+    tableColumnTypes,
+    tablePage,
+    tableTake,
+    tableTotalOnPage,
     isTableLoading,
     updateCell,
     addRow,
     deleteRow,
     addColumn,
     openTable,
+    setTableTake,
   } = useExplorerStore();
 
-  const { databases } = useDbDataStore();
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [showAddCol, setShowAddCol] = useState(false);
   const [newColName, setNewColName] = useState("");
-
-  const tableInfo = databases
-    .find((d) => d.name === activeDatabase)
-    ?.tables.find((t) => t.name === activeTable);
+  const [customTake, setCustomTake] = useState("");
+  const [showTakeDropdown, setShowTakeDropdown] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   if (!activeDatabase || !activeTable) {
     return (
@@ -72,6 +80,15 @@ export const TableView: React.FC = () => {
     setShowAddCol(false);
   };
 
+  const handleCustomTake = () => {
+    const val = parseInt(customTake, 10);
+    if (!isNaN(val) && val > 0) {
+      setShowTakeDropdown(false);
+      setShowAddCol(false);
+      setTableTake(val);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden">
       {/* Toolbar */}
@@ -81,14 +98,53 @@ export const TableView: React.FC = () => {
           <span className="text-muted">/</span>
           <span className="text-text text-xs font-mono font-semibold">{activeTable}</span>
         </div>
-        {tableInfo && (
-          <Badge variant="default">{formatRowCount(tableData.length)} rows</Badge>
-        )}
+        <Badge variant="default">{tableTotalOnPage} rows</Badge>
+
+        {/* Take Dropdown */}
+        <div className="relative ml-3">
+          <button
+            onClick={() => setShowTakeDropdown(!showTakeDropdown)}
+            className="flex items-center gap-1 px-2 py-1 text-xs font-mono text-text-dim border border-border rounded hover:border-accent/40 transition-colors"
+          >
+            {tableTake} <ChevronDown size={12} />
+          </button>
+          {showTakeDropdown && (
+            <div className="absolute top-full left-0 mt-1 bg-surface border border-border rounded-lg shadow-lg z-20 min-w-[100px]">
+              {TAKE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => {
+                    setShowTakeDropdown(false);
+                    setTableTake(opt.value);
+                  }}
+                  className={`w-full text-left px-3 py-1.5 text-xs font-mono hover:bg-white/5 transition-colors ${
+                    tableTake === opt.value ? "text-accent" : "text-text-dim"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <div className="border-t border-border px-1 py-1.5">
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    placeholder="Custom"
+                    value={customTake}
+                    className="py-1 px-1 w-full rounded text-[12px] text-text-dim"
+                    onChange={(e) => setCustomTake(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCustomTake()}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="ml-auto flex items-center gap-2">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => openTable(activeDatabase, activeTable)}
+            onClick={() => openTable(activeDatabase, activeTable, tablePage, tableTake)}
           >
             <RefreshCw size={13} />
             Refresh
@@ -105,17 +161,27 @@ export const TableView: React.FC = () => {
       </div>
 
       {/* Schema info */}
-      {tableInfo && (
-        <div className="px-5 py-2 border-b border-border bg-bg/30 flex gap-3 overflow-x-auto">
-          {tableInfo.columns.map((col) => (
-            <div key={col.name} className="flex items-center gap-1.5 shrink-0">
-              <span className="text-xs font-mono text-text-dim">{col.name}</span>
-              <Badge variant={col.primaryKey ? "accent" : "default"} className="text-[10px]">
-                {col.type}
+      {tableColumns.length > 0 && (
+        <div className="px-5 py-2 border-b border-border bg-bg/30 flex items-center gap-3 overflow-x-auto">
+          {tableColumns.map((col) => (
+            <div key={col} className="flex items-center gap-1.5 shrink-0">
+              <span className="text-xs font-mono text-text-dim">{col}</span>
+              <Badge variant={tableColumnTypes[col] ? "accent" : "default"} className="text-[10px]">
+                {tableColumnTypes[col] ?? "UNKNOWN"}
               </Badge>
-              {col.primaryKey && <Badge variant="warning" className="text-[10px]">PK</Badge>}
             </div>
           ))}
+
+          {/* Search Input */}
+          <div className="ml-auto">
+            <input
+              type="text"
+              placeholder="Search records..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="px-3 py-1 text-xs border border-border rounded bg-surface text-text placeholder:text-muted focus:outline-none focus:border-accent"
+            />
+          </div>
         </div>
       )}
 
@@ -139,7 +205,15 @@ export const TableView: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {tableData.map((row, rowIndex) => (
+            {(searchQuery.trim()
+              ? tableData.filter((row) =>
+                  tableColumns.some((col) => {
+                    const val = row[col];
+                    return val !== undefined && String(val).toLowerCase().includes(searchQuery.toLowerCase());
+                  })
+                )
+              : tableData
+            ).map((row, rowIndex) => (
               <tr
                 key={String(row._id)}
                 className="border-b border-border/50 hover:bg-white/[0.02] transition-colors group"
@@ -201,11 +275,21 @@ export const TableView: React.FC = () => {
           </tbody>
         </table>
 
-        {tableData.length === 0 && (
+        {(searchQuery.trim()
+          ? tableData.filter((row) =>
+              tableColumns.some((col) => {
+                const val = row[col];
+                return val !== undefined && String(val).toLowerCase().includes(searchQuery.toLowerCase());
+              })
+            )
+          : tableData
+        ).length === 0 ? (
           <div className="flex items-center justify-center h-40 text-text-dim">
-            <p className="text-sm font-mono">No data in this table</p>
+            <p className="text-sm font-mono">
+              {searchQuery.trim() ? `No records found for "${searchQuery}"` : "No data in this table"}
+            </p>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Add Column Modal */}

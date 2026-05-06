@@ -196,7 +196,7 @@ const columnDefs = useMemo(() => {
             <div key={col} className="flex items-center gap-1.5 shrink-0">
               <span className="text-xs font-mono text-text-dim">{col}</span>
               <Badge variant={tableColumnTypes[col] ? "accent" : "default"} className="text-[10px]">
-                {tableColumnTypes[col] ?? "UNKNOWN"}
+                {tableColumnTypes[col]}
               </Badge>
             </div>
           ))}

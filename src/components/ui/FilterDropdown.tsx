@@ -3,13 +3,14 @@ import {
   Filter,
   ChevronDown,
   ArrowLeft,
-  ChevronLeft,
   ChevronRight,
-  Calendar,
   Check,
   X,
+  Calendar,
+  ChevronLeft,
 } from "lucide-react";
 import { cn } from "../../utils/cn";
+import { useExplorerStore } from "../../stores/tablesStore";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,8 +59,8 @@ function isRangeColumn(colName: string): boolean {
 }
 
 const INTEGER_CONDITIONS = [
-  "Is", "Is not", "Greater than", "Less than", "Between",
-  "Greater than or equal to", "Less than or equal to", "Is empty", "Not empty",
+  "Greater than", "Less than", "Between",
+  "Greater than or equal to", "Less than or equal to",
 ];
 
 const TEXT_CONDITIONS = [
@@ -199,6 +200,9 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
   const [intCondition, setIntCondition] = useState(INTEGER_CONDITIONS[0]);
   const [intValue, setIntValue] = useState<number>(0);
   const [intRange, setIntRange] = useState<[number, number]>([0, 100]);
+  const [intMax, setIntMax] = useState<number>(100);
+  const [activeHandle, setActiveHandle] = useState<"start" | "end" | null>(null);
+  const { activeTable } = useExplorerStore()
 
   // Text filter state
   const [textCondition, setTextCondition] = useState(TEXT_CONDITIONS[0]);
@@ -209,6 +213,7 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
   const [dateOption, setDateOption] = useState<string | null>(null);
   const [dateCondition, setDateCondition] = useState("Between");
   const [dateStart, setDateStart] = useState<Date | null>(null);
+  const [date, setDate] = React.useState<Date | undefined>(new Date())
   const [dateEnd, setDateEnd] = useState<Date | null>(null);
   const [calendarStep, setCalendarStep] = useState<"options" | "calendar">("options");
 
@@ -230,6 +235,8 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
     setIntCondition(INTEGER_CONDITIONS[0]);
     setIntValue(0);
     setIntRange([0, 100]);
+    setIntMax(100);
+    setActiveHandle(null);
     setTextCondition(TEXT_CONDITIONS[0]);
     setTextSearch("");
     setSelectedValues(new Set());
@@ -309,7 +316,62 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
   );
 
   const isTwoValue = (cond: string) => cond === "Between";
-  const showSlider = selectedCol ? isRangeColumn(selectedCol.name) : false;
+  const showSlider = selectedCol && colType === "integer";
+  const isTwoCondition = isTwoValue(intCondition);
+  const isDateType = selectedCol && colType === "date";
+
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!selectedCol || !showSlider || !isTwoCondition) return;
+      
+      const sliderEl = document.querySelector('[data-slider-target]') as HTMLInputElement | null;
+      if (!sliderEl) return;
+      
+      const rect = sliderEl.getBoundingClientRect();
+      const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const value = Math.round(percent * intMax);
+      
+      if (activeHandle === "start" && value < intRange[1] - 1) {
+        setIntRange([value, intRange[1]]);
+      } else if (activeHandle === "end" && value > intRange[0] + 1) {
+        setIntRange([intRange[0], value]);
+        if (value > 100) setIntMax(value);
+        else setIntMax(100);
+      }
+    };
+
+    const handlePointerUp = () => {
+      setActiveHandle(null);
+    };
+
+    if (activeHandle) {
+      document.addEventListener("pointermove", handlePointerMove);
+      document.addEventListener("pointerup", handlePointerUp);
+    }
+
+    return () => {
+      document.removeEventListener("pointermove", handlePointerMove);
+      document.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [activeHandle, intMax, intRange, selectedCol, showSlider, isTwoCondition, intCondition]);
+
+  const isFilterValid = () => {
+    if (colType === "integer") {
+      if (isTwoValue(intCondition)) {
+        return intRange[0] < intRange[1] && intRange[0] >= 0 && intRange[1] > 0;
+      }
+      return intValue >= 0;
+    } else if (colType === "text" || colType === "unknown") {
+      if (["Is empty", "Not empty"].includes(textCondition)) return true;
+      return selectedValues.size > 0;
+    } else if (colType === "date") {
+      if (dateOption === "Fixed date range") {
+        return dateStart && dateEnd;
+      }
+      return !!dateOption;
+    }
+    return true;
+  };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -337,7 +399,7 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
 
       {/* Dropdown panel */}
       {open && (
-        <div className="absolute top-full left-0 mt-1.5 z-50 w-72 bg-surface border border-border rounded-xl shadow-2xl overflow-hidden">
+        <div className={`absolute top-full left-0 mt-1.5 z-50 w-[400px] bg-surface border border-border rounded-xl shadow-2xl overflow-hidden`}>
 
           {/* ── STEP 1: Column list ── */}
           {step === "column-list" && (
@@ -346,7 +408,7 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
               <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-mono text-text font-semibold">
                   <Filter size={12} className="text-accent" />
-                  Filter by column
+                  Filter {activeTable} by column
                 </div>
                 {activeFilters.length > 0 && (
                   <button
@@ -365,8 +427,8 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
                   placeholder="Search columns..."
                   value={colSearch}
                   onChange={(e) => setColSearch(e.target.value)}
-                  className="w-full bg-bg border border-border rounded-lg px-3 py-1.5 text-xs font-mono text-text placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
-                />
+                  className="w-full bg-bg border border-border rounded px-3 py-1.5 text-xs font-mono text-text placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
+                  />
               </div>
 
               {/* Column options */}
@@ -436,105 +498,107 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
               {/* ── INTEGER type ── */}
               {colType === "integer" && (
                 <div className="px-4 py-3 border-b border-border">
-                  {showSlider ? (
+                  {showSlider && isTwoValue(intCondition) ? (
                     <>
-                      {isTwoValue(intCondition) ? (
-                        <div>
-                          <div className="flex justify-between text-[10px] font-mono text-text-dim mb-1">
-                            <span>{intRange[0]}</span>
-                            <span>{intRange[1]}</span>
-                          </div>
-                          <div className="relative h-5 flex items-center">
-                            <div className="absolute left-0 right-0 h-1 bg-border rounded" />
-                            <div
-                              className="absolute h-1 bg-accent rounded"
-                              style={{
-                                left: `${intRange[0]}%`,
-                                right: `${100 - intRange[1]}%`,
-                              }}
-                            />
-                            <input
-                              type="range" min={0} max={100}
-                              value={intRange[0]}
-                              onChange={(e) => {
-                                const v = parseInt(e.target.value);
-                                if (v < intRange[1]) setIntRange([v, intRange[1]]);
-                              }}
-                              className="absolute w-full appearance-none bg-transparent cursor-pointer [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-bg"
-                            />
-                            <input
-                              type="range" min={0} max={100}
-                              value={intRange[1]}
-                              onChange={(e) => {
-                                const v = parseInt(e.target.value);
-                                if (v > intRange[0]) setIntRange([intRange[0], v]);
-                              }}
-                              className="absolute w-full appearance-none bg-transparent cursor-pointer [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-bg"
-                            />
-                          </div>
-                          <div className="flex gap-2 mt-2">
-                            <input
-                              type="number" min={0} max={intRange[1]}
-                              value={intRange[0]}
-                              onChange={(e) => setIntRange([parseInt(e.target.value) || 0, intRange[1]])}
-                              className="w-full bg-bg border border-border rounded px-2 py-1 text-xs font-mono text-text focus:outline-none focus:border-accent"
-                            />
-                            <span className="text-muted text-xs self-center">–</span>
-                            <input
-                              type="number" min={intRange[0]} max={100}
-                              value={intRange[1]}
-                              onChange={(e) => setIntRange([intRange[0], parseInt(e.target.value) || 100])}
-                              className="w-full bg-bg border border-border rounded px-2 py-1 text-xs font-mono text-text focus:outline-none focus:border-accent"
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        !["Is empty", "Not empty"].includes(intCondition) && (
-                          <input
-                            type="number"
-                            value={intValue}
-                            onChange={(e) => setIntValue(parseInt(e.target.value) || 0)}
-                            className="w-full bg-bg border border-border rounded px-3 py-1.5 text-xs font-mono text-text focus:outline-none focus:border-accent"
-                            placeholder="Enter value..."
-                          />
-                        )
-                      )}
+                      <div className="flex justify-between text-[10px] font-mono text-text-dim mb-1">
+                        <span>{intRange[0]}</span>
+                        <span>{intRange[1]}</span>
+                      </div>
+                      <div className="relative h-5 flex items-center">
+                        <div className="absolute left-0 right-0 h-1 bg-border rounded" />
+                        <div
+                          className="absolute h-1 bg-accent rounded"
+                          style={{
+                            left: `${(intRange[0] / intMax) * 100}%`,
+                            right: `${100 - (intRange[1] / intMax) * 100}%`,
+                          }}
+                        />
+                        <input
+                          type="range" min={0} max={intMax}
+                          value={intRange[0]}
+                          data-slider-target="true"
+                          onPointerDown={() => setActiveHandle("start")}
+                          onPointerUp={() => setActiveHandle(null)}
+                          className="absolute w-full h-full appearance-none bg-transparent cursor-pointer z-10 pointer-events-auto [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-bg"
+                        />
+                        <input
+                          type="range" min={0} max={intMax}
+                          value={intRange[1]}
+                          data-slider-target="true"
+                          onPointerDown={() => setActiveHandle("end")}
+                          onPointerUp={() => setActiveHandle(null)}
+                          className="absolute w-full h-full appearance-none bg-transparent cursor-pointer z-20 pointer-events-auto [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-accent"
+                        />
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          type="number" min={0} max={intRange[1] - 1}
+                          value={intRange[0]}
+                          onChange={(e) => {
+                            const v = Math.min(parseInt(e.target.value) || 0, intRange[1] - 1);
+                            setIntRange([v, intRange[1]]);
+                            if (v > intMax) setIntMax(v);
+                          }}
+                          className="w-full bg-bg border border-border rounded px-2 py-1 text-xs font-mono text-text focus:outline-none focus:border-accent"
+                        />
+                        <span className="text-muted text-xs self-center">–</span>
+                        <input
+                          type="number" min={intRange[0] + 1}
+                          value={intRange[1]}
+                          onChange={(e) => {
+                            const raw = parseInt(e.target.value) || 0;
+                            const v = Math.max(raw, intRange[0] + 1);
+                            setIntRange([intRange[0], v]);
+                            if (raw > 100) {
+                              setIntMax(raw);
+                            } else {
+                              const highest = Math.max(intRange[0], 100);
+                              setIntMax(highest);
+                            }
+                          }}
+                          className="w-full bg-bg border border-border rounded px-2 py-1 text-xs font-mono text-text focus:outline-none focus:border-accent"
+                        />
+                      </div>
                     </>
                   ) : (
-                    !["Is empty", "Not empty"].includes(intCondition) && (
-                      <div className={cn("flex gap-2", isTwoValue(intCondition) && "")}>
-                        {isTwoValue(intCondition) ? (
-                          <>
-                            <input
-                              type="number"
-                              value={intRange[0]}
-                              onChange={(e) => setIntRange([parseInt(e.target.value) || 0, intRange[1]])}
-                              className="w-full bg-bg border border-border rounded px-2 py-1.5 text-xs font-mono text-text focus:outline-none focus:border-accent"
-                              placeholder="From"
-                            />
-                            <span className="text-muted text-xs self-center">–</span>
-                            <input
-                              type="number"
-                              value={intRange[1]}
-                              onChange={(e) => setIntRange([intRange[0], parseInt(e.target.value) || 0])}
-                              className="w-full bg-bg border border-border rounded px-2 py-1.5 text-xs font-mono text-text focus:outline-none focus:border-accent"
-                              placeholder="To"
-                            />
-                          </>
-                        ) : (
-                          <input
-                            type="number"
-                            value={intValue}
-                            onChange={(e) => setIntValue(parseInt(e.target.value) || 0)}
-                            className="w-full bg-bg border border-border rounded px-3 py-1.5 text-xs font-mono text-text focus:outline-none focus:border-accent"
-                            placeholder="Enter value..."
-                          />
-                        )}
+                    <>
+                      <div className="flex justify-between text-[10px] font-mono text-text-dim mb-1">
+                        <span>{intValue}</span>
                       </div>
-                    )
-                  )}
-                  {["Is empty", "Not empty"].includes(intCondition) && (
-                    <p className="text-[11px] font-mono text-muted italic">No value needed for this condition.</p>
+                      <div className="relative h-5 flex items-center">
+                        <div className="absolute left-0 right-0 h-1 bg-border rounded" />
+                        <div
+                          className="absolute h-1 bg-accent rounded"
+                          style={{
+                            left: `${(intValue / intMax) * 100}%`,
+                            right: `${100 - (intValue / intMax) * 100}%`,
+                          }}
+                        />
+                        <input
+                          type="range" min={0} max={intMax}
+                          value={intValue}
+                          onChange={(e) => {
+                            const v = parseInt(e.target.value);
+                            setIntValue(v);
+                            if (v > 100) setIntMax(v);
+                            else setIntMax(100);
+                          }}
+                          className="absolute w-full appearance-none bg-transparent cursor-pointer [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-bg"
+                        />
+                      </div>
+                      <input
+                        type="number"
+                        value={intValue}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value) || 0;
+                          setIntValue(v);
+                          if (v > 100) setIntMax(v);
+                          else setIntMax(100);
+                        }}
+                        className="w-full bg-bg border border-border rounded px-3 py-1.5 text-xs font-mono text-text focus:outline-none focus:border-accent mt-2"
+                        placeholder="Enter value..."
+                      />
+                    </>
                   )}
                 </div>
               )}
@@ -717,7 +781,13 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
               <div className="px-3 py-2.5 border-t border-border bg-bg/50">
                 <button
                   onClick={handleApply}
-                  className="w-full bg-accent text-bg text-xs font-mono font-semibold py-2 rounded-lg hover:bg-accent-dim transition-colors active:scale-[0.98]"
+                  disabled={!isFilterValid()}
+                  className={cn(
+                    "w-full text-xs font-mono font-semibold py-2 rounded-lg transition-colors active:scale-[0.98]",
+                    isFilterValid()
+                      ? "bg-accent text-bg hover:bg-accent-dim"
+                      : "bg-border text-muted cursor-not-allowed"
+                  )}
                 >
                   Apply filter
                 </button>

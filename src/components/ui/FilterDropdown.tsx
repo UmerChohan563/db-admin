@@ -213,7 +213,6 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
   const [dateOption, setDateOption] = useState<string | null>(null);
   const [dateCondition, setDateCondition] = useState("Between");
   const [dateStart, setDateStart] = useState<Date | null>(null);
-  const [date, setDate] = React.useState<Date | undefined>(new Date())
   const [dateEnd, setDateEnd] = useState<Date | null>(null);
   const [calendarStep, setCalendarStep] = useState<"options" | "calendar">("options");
 
@@ -299,10 +298,14 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
     } else if (colType === "date") {
       condition = dateOption ?? "";
       if (dateOption === "Fixed date range") {
-        value = [
-          dateStart?.toISOString().split("T")[0] ?? "",
-          dateEnd?.toISOString().split("T")[0] ?? "",
-        ];
+        if (dateCondition === "Between") {
+          value = [
+            dateStart?.toISOString().split("T")[0] ?? "",
+            dateEnd?.toISOString().split("T")[0] ?? "",
+          ];
+        } else {
+          value = dateStart?.toISOString().split("T")[0] ?? "";
+        }
       }
     }
 
@@ -318,7 +321,6 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
   const isTwoValue = (cond: string) => cond === "Between";
   const showSlider = selectedCol && colType === "integer";
   const isTwoCondition = isTwoValue(intCondition);
-  const isDateType = selectedCol && colType === "date";
 
   useEffect(() => {
     const handlePointerMove = (e: PointerEvent) => {
@@ -366,7 +368,10 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
       return selectedValues.size > 0;
     } else if (colType === "date") {
       if (dateOption === "Fixed date range") {
-        return dateStart && dateEnd;
+        if (dateCondition === "Between") {
+          return dateStart && dateEnd;
+        }
+        return !!dateStart;
       }
       return !!dateOption;
     }
@@ -766,10 +771,13 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
                             </div>
                           </div>
                         ) : (
-                          <MiniCalendar
-                            selected={dateStart}
-                            onSelect={setDateStart}
-                          />
+                          <div>
+                            <p className="text-[10px] font-mono text-muted mb-1">Date</p>
+                            <MiniCalendar
+                              selected={dateStart}
+                              onSelect={setDateStart}
+                            />
+                          </div>
                         )}
                       </div>
                     </>

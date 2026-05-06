@@ -6,7 +6,6 @@ import { Modal } from "./Modal";
 import { Input } from "./Input";
 import { Badge } from "./Badge";
 import { FilterDropdown, type FilterState } from "./FilterDropdown";
-import { useDbDataStore } from "../../stores/dbDataStore";
 
 const TAKE_OPTIONS = [
   { value: 10, label: "10" },
@@ -33,17 +32,22 @@ export const TableView: React.FC = () => {
     openTable,
     setTableTake,
   } = useExplorerStore();
-
+  
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [showAddCol, setShowAddCol] = useState(false);
-  const [newColName, setNewColName] = useState("");
-  const { databases } = useDbDataStore();
+const [newColName, setNewColName] = useState("");
   const [activeFilters, setActiveFilters] = useState<FilterState[]>([]);
   const [customTake, setCustomTake] = useState("");
   const [showTakeDropdown, setShowTakeDropdown] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-
+  const [searchQuery] = useState("");
+const columnDefs = useMemo(() => {
+    return tableColumns.map((c) => ({
+      name: c,
+      type: tableColumnTypes[c] ?? "unknown",
+    }));
+  }, [tableColumns, tableColumnTypes]);
+  
   if (!activeDatabase || !activeTable) {
     return (
       <div className="flex-1 flex items-center justify-center text-text-dim">
@@ -93,17 +97,7 @@ export const TableView: React.FC = () => {
     }
   };
 
-    const tableInfo = databases
-    .find((d) => d.name === activeDatabase)
-    ?.tables.find((t) => t.name === activeTable);
 
-   const columnDefs = useMemo(() => {
-    if (!tableInfo) return tableColumns.map((c) => ({ name: c, type: "unknown" }));
-    return tableColumns.map((c) => {
-      const found = tableInfo.columns.find((col) => col.name === c);
-      return { name: c, type: found?.type ?? "unknown" };
-    });
-  }, [tableInfo, tableColumns]);
 
   const handleApplyFilter = (f: FilterState) => {
     setActiveFilters((prev) => {
@@ -213,11 +207,11 @@ export const TableView: React.FC = () => {
         <div className="px-5 py-2 border-b border-border bg-accent/5 flex items-center gap-2 overflow-x-auto">
           <span className="text-[10px] font-mono text-text-dim shrink-0">Filters:</span>
           {activeFilters.map((f) => (
-            <div key={f.column} className="flex items-center gap-1 bg-surface border border-accent/30 rounded px-2 py-0.5 shrink-0">
+            <div key={f.column} className="flex items-center gap-1 bg-surface border border-accent/30 rounded px-2 py-0 h-[25px] shrink-0">
               <span className="text-[11px] font-mono text-accent">{f.column}</span>
               <span className="text-[10px] font-mono text-muted">{f.condition}</span>
               <button onClick={() => setActiveFilters((p) => p.filter((x) => x.column !== f.column))} className="text-muted hover:text-danger ml-1">
-                <span className="text-[10px]">×</span>
+                <span className="text-[25px]">×</span>
               </button>
             </div>
           ))}

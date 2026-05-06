@@ -81,14 +81,26 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
     set({ isTableLoading: true, activeDatabase: dbName, activeTable: tableName, activeView: "table" });
 
     try {
-      const response = await apiService.getTableRecords(dbName, tableName, page, take);
+      const [recordsResponse, schemaResponse] = await Promise.all([
+        apiService.getTableRecords(dbName, tableName, page, take),
+        apiService.getTableSchema(dbName, tableName),
+      ]);
 
-      // Extract columns and types from meta.types (from first record)
-      const firstRecord = response.records[0];
-      const columns = firstRecord?.meta?.types ? Object.keys(firstRecord.meta.types) : [];
-      const columnTypes = firstRecord?.meta?.types ?? {};
+      // Build column types from schema API response
+      const columnTypes: Record<string, string> = {};
+      if (schemaResponse.bins) {
+        schemaResponse.bins.forEach((bin: { name: string; type: string }) => {
+          columnTypes[bin.name] = bin.type;
+        });
+      }
 
-      const rows = response.records.map((record: { data: Record<string, unknown> }) => ({
+      // Extract columns from records (fallback to schema bins if no records)
+      const firstRecord = recordsResponse.records[0];
+      const columns = firstRecord?.meta?.types 
+        ? Object.keys(firstRecord.meta.types)
+        : (schemaResponse.bins?.map((b: { name: string }) => b.name) ?? []);
+
+      const rows = recordsResponse.records.map((record: { data: Record<string, unknown> }) => ({
         _id: generateId(),
         ...record.data,
       }));
@@ -97,9 +109,9 @@ export const useExplorerStore = create<ExplorerState>((set, get) => ({
         tableData: rows,
         tableColumns: columns,
         tableColumnTypes: columnTypes,
-        tablePage: response.page,
-        tableTake: response.take,
-        tableTotalOnPage: response.total_on_page,
+        tablePage: recordsResponse.page,
+        tableTake: recordsResponse.take,
+        tableTotalOnPage: recordsResponse.total_on_page,
         isTableLoading: false,
       });
     } catch (error) {

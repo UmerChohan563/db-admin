@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Plus, Trash2, Columns, RefreshCw, ChevronDown } from "lucide-react";
 import { useExplorerStore } from "../../stores/tablesStore";
 import { Button } from "./Button";
 import { Modal } from "./Modal";
 import { Input } from "./Input";
 import { Badge } from "./Badge";
+import { FilterDropdown, type FilterState } from "./FilterDropdown";
+import { useDbDataStore } from "../../stores/dbDataStore";
 
 const TAKE_OPTIONS = [
   { value: 10, label: "10" },
@@ -36,6 +38,8 @@ export const TableView: React.FC = () => {
   const [editValue, setEditValue] = useState("");
   const [showAddCol, setShowAddCol] = useState(false);
   const [newColName, setNewColName] = useState("");
+  const { databases } = useDbDataStore();
+  const [activeFilters, setActiveFilters] = useState<FilterState[]>([]);
   const [customTake, setCustomTake] = useState("");
   const [showTakeDropdown, setShowTakeDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -87,6 +91,30 @@ export const TableView: React.FC = () => {
       setShowAddCol(false);
       setTableTake(val);
     }
+  };
+
+    const tableInfo = databases
+    .find((d) => d.name === activeDatabase)
+    ?.tables.find((t) => t.name === activeTable);
+
+   const columnDefs = useMemo(() => {
+    if (!tableInfo) return tableColumns.map((c) => ({ name: c, type: "unknown" }));
+    return tableColumns.map((c) => {
+      const found = tableInfo.columns.find((col) => col.name === c);
+      return { name: c, type: found?.type ?? "unknown" };
+    });
+  }, [tableInfo, tableColumns]);
+
+  const handleApplyFilter = (f: FilterState) => {
+    setActiveFilters((prev) => {
+      const existing = prev.findIndex((p) => p.column === f.column);
+      if (existing >= 0) {
+        const next = [...prev];
+        next[existing] = f;
+        return next;
+      }
+      return [...prev, f];
+    });
   };
 
   return (
@@ -141,6 +169,13 @@ export const TableView: React.FC = () => {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          <FilterDropdown
+            columns={columnDefs}
+            tableData={tableData}
+            activeFilters={activeFilters}
+            onApply={handleApplyFilter}
+            onClear={() => setActiveFilters([])}
+          />
           <Button
             variant="ghost"
             size="sm"
@@ -171,17 +206,21 @@ export const TableView: React.FC = () => {
               </Badge>
             </div>
           ))}
+        </div>
+      )}
 
-          {/* Search Input */}
-          <div className="ml-auto">
-            <input
-              type="text"
-              placeholder="Search records..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="px-3 py-1 text-xs border border-border rounded bg-surface text-text placeholder:text-muted focus:outline-none focus:border-accent"
-            />
-          </div>
+      {activeFilters.length > 0 && (
+        <div className="px-5 py-2 border-b border-border bg-accent/5 flex items-center gap-2 overflow-x-auto">
+          <span className="text-[10px] font-mono text-text-dim shrink-0">Filters:</span>
+          {activeFilters.map((f) => (
+            <div key={f.column} className="flex items-center gap-1 bg-surface border border-accent/30 rounded px-2 py-0.5 shrink-0">
+              <span className="text-[11px] font-mono text-accent">{f.column}</span>
+              <span className="text-[10px] font-mono text-muted">{f.condition}</span>
+              <button onClick={() => setActiveFilters((p) => p.filter((x) => x.column !== f.column))} className="text-muted hover:text-danger ml-1">
+                <span className="text-[10px]">×</span>
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
